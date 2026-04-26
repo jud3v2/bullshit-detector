@@ -1,17 +1,19 @@
 {
   "expo": {
-    "name": "dans-mon-dossier-projet-je-souhaite",
-    "slug": "dans-mon-dossier-projet-je-souhaite",
+    "name": "Bullshit Detector",
+    "slug": "bullshit-detector",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "dansmondossierprojetjesouhaite",
+    "scheme": "bullshitdetector",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.jud3v.bullshitdetector",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.jud3v.bullshitdetector",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -33,12 +35,13 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#F7F8F5",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#111318"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

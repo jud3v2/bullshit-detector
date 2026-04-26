@@ -1,0 +1,46 @@
+name: Expo Update
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  update:
+    name: Publish preview update
+    runs-on: ubuntu-latest
+    if: ${{ secrets.EXPO_TOKEN != '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check EAS project configuration
+        id: eas_project
+        run: |
+          if grep -R "projectId" app.json app.config.js >/dev/null 2>&1; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "EAS projectId not found. Run 'npx eas init' locally, then push again."
+          fi
+
+      - name: Publish EAS update
+        if: steps.eas_project.outputs.configured == 'true'
+        run: eas update --branch preview --non-interactive --message "CI preview update"
