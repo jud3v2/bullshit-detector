@@ -47,6 +47,7 @@ import {
   detectPlatform,
   extractUrls,
   isSingleUrl,
+  type SocialPlatform,
   type SocialUrlContext,
 } from '@/lib/social-url';
 import {
@@ -108,6 +109,14 @@ type VerificationSource = {
   title: string;
   subtitle: string;
   url: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+};
+
+type QuestionSuggestion = {
+  id: string;
+  label: string;
+  question: string;
+  detail: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
 };
 
@@ -519,22 +528,277 @@ function buildVerificationQuery(claim: string, urlContext: SocialUrlContext | nu
   return cleaned || urlContext?.url || 'verification source';
 }
 
-function buildQuestionSuggestions(content: string, language: Language) {
+function buildQuestionSuggestions(content: string, language: Language): QuestionSuggestion[] {
   const topic = extractQuestionTopic(content);
+  const urls = extractUrls(content);
+  const platform = urls[0] ? detectPlatform(urls[0]) : 'Other link';
+  const mode = urls.length && !isSingleUrl(content) ? 'combined' : urls.length ? 'url' : 'text';
+  const platformQuestions = getPlatformQuestionSuggestions(platform, topic, language);
+  const modeQuestions = getModeQuestionSuggestions(mode, topic, language);
+  const baseQuestions =
+    language === 'fr'
+      ? [
+          {
+            id: 'truth',
+            label: 'Verifier le fait',
+            question: `Est-ce que ${topic} est vrai ?`,
+            detail: 'Demande une reponse claire sur la veracite du claim principal.',
+            icon: 'shield-search' as const,
+          },
+          {
+            id: 'source',
+            label: 'Retrouver la source',
+            question: `Quelle est la source originale de ${topic} ?`,
+            detail: 'Priorise l’origine, la date et le contexte de publication.',
+            icon: 'source-branch' as const,
+          },
+          {
+            id: 'missing',
+            label: 'Contexte manquant',
+            question: `Qu'est-ce qui manque pour verifier ${topic} ?`,
+            detail: 'Liste ce qui manque: commentaires, media, auteur, lieu, date.',
+            icon: 'help-circle-outline' as const,
+          },
+        ]
+      : [
+          {
+            id: 'truth',
+            label: 'Check the claim',
+            question: `Is ${topic} true?`,
+            detail: 'Ask for a clear answer about the main claim.',
+            icon: 'shield-search' as const,
+          },
+          {
+            id: 'source',
+            label: 'Find the source',
+            question: `What is the original source for ${topic}?`,
+            detail: 'Prioritize origin, date, and publication context.',
+            icon: 'source-branch' as const,
+          },
+          {
+            id: 'missing',
+            label: 'Missing context',
+            question: `What context is missing to verify ${topic}?`,
+            detail: 'List missing comments, media, author, place, or date.',
+            icon: 'help-circle-outline' as const,
+          },
+        ];
 
-  if (language === 'fr') {
-    return [
-      `Est-ce que ${topic} est vrai ?`,
-      `Quelle est la source originale de ${topic} ?`,
-      `Qu'est-ce qui manque pour verifier ${topic} ?`,
-    ];
+  const deduped = [...platformQuestions, ...modeQuestions, ...baseQuestions].filter(
+    (item, index, array) => array.findIndex((candidate) => candidate.question === item.question) === index,
+  );
+
+  return deduped.slice(0, 5);
+}
+
+function getModeQuestionSuggestions(mode: 'text' | 'url' | 'combined', topic: string, language: Language): QuestionSuggestion[] {
+  if (mode === 'combined') {
+    return language === 'fr'
+      ? [
+          {
+            id: 'combined-consistency',
+            label: 'Comparer texte et URL',
+            question: `Est-ce que le texte colle correspond vraiment au contenu de l’URL sur ${topic} ?`,
+            detail: 'Detecte les titres trompeurs, captures sorties du contexte et resumes faux.',
+            icon: 'compare-horizontal' as const,
+          },
+        ]
+      : [
+          {
+            id: 'combined-consistency',
+            label: 'Compare text and URL',
+            question: `Does the pasted text actually match the URL content about ${topic}?`,
+            detail: 'Detect misleading captions, out-of-context screenshots, and false summaries.',
+            icon: 'compare-horizontal' as const,
+          },
+        ];
   }
 
-  return [
-    `Is ${topic} true?`,
-    `What is the original source for ${topic}?`,
-    `What context is missing to verify ${topic}?`,
-  ];
+  if (mode === 'url') {
+    return language === 'fr'
+      ? [
+          {
+            id: 'url-original',
+            label: 'Lire la publication',
+            question: `Que dit exactement la publication originale sur ${topic} ?`,
+            detail: 'Force l’IA a separer contenu recupere, contexte public et inconnues.',
+            icon: 'link-variant' as const,
+          },
+        ]
+      : [
+          {
+            id: 'url-original',
+            label: 'Read original post',
+            question: `What exactly does the original post say about ${topic}?`,
+            detail: 'Forces AI to separate retrieved content, public context, and unknowns.',
+            icon: 'link-variant' as const,
+          },
+        ];
+  }
+
+  return language === 'fr'
+    ? [
+        {
+          id: 'text-intent',
+          label: 'Detecter la manipulation',
+          question: `Quels signaux de manipulation, arnaque ou exageration apparaissent dans ${topic} ?`,
+          detail: 'Utile pour mails, annonces, promesses commerciales et messages prives.',
+          icon: 'alert-decagram-outline' as const,
+        },
+      ]
+    : [
+        {
+          id: 'text-intent',
+          label: 'Detect manipulation',
+          question: `What manipulation, scam, or exaggeration signals appear in ${topic}?`,
+          detail: 'Useful for emails, listings, sales promises, and private messages.',
+          icon: 'alert-decagram-outline' as const,
+        },
+      ];
+}
+
+function getPlatformQuestionSuggestions(platform: SocialPlatform, topic: string, language: Language): QuestionSuggestion[] {
+  const fr = language === 'fr';
+
+  switch (platform) {
+    case 'TikTok':
+      return [
+        {
+          id: 'tiktok-media',
+          label: fr ? 'Video TikTok' : 'TikTok video',
+          question: fr
+            ? `Est-ce que la video TikTok sur ${topic} montre vraiment ce qui est affirme ?`
+            : `Does the TikTok video about ${topic} really show what the post claims?`,
+          detail: fr ? 'Verifie montage, audio, contexte, date et description.' : 'Checks edit, audio, context, date, and caption.',
+          icon: 'music-note-outline',
+        },
+        {
+          id: 'tiktok-comments',
+          label: fr ? 'Commentaires TikTok' : 'TikTok comments',
+          question: fr
+            ? `Les commentaires TikTok contredisent-ils ou confirment-ils ${topic} ?`
+            : `Do TikTok comments contradict or confirm ${topic}?`,
+          detail: fr ? 'Cherche corrections, debunks et temoins dans les reactions.' : 'Looks for corrections, debunks, and witnesses in reactions.',
+          icon: 'comment-multiple-outline',
+        },
+      ];
+    case 'Instagram':
+      return [
+        {
+          id: 'instagram-caption',
+          label: fr ? 'Caption Instagram' : 'Instagram caption',
+          question: fr
+            ? `La legende Instagram donne-t-elle une preuve verifiable pour ${topic} ?`
+            : `Does the Instagram caption provide verifiable evidence for ${topic}?`,
+          detail: fr ? 'Compare image, legende, hashtags, date et compte.' : 'Compares image, caption, hashtags, date, and account.',
+          icon: 'instagram',
+        },
+        {
+          id: 'instagram-repost',
+          label: fr ? 'Repost / contexte' : 'Repost / context',
+          question: fr
+            ? `Cette publication Instagram sur ${topic} est-elle un repost sorti de son contexte ?`
+            : `Is this Instagram post about ${topic} a repost taken out of context?`,
+          detail: fr ? 'Priorise source originale et traces de republication.' : 'Prioritizes original source and repost traces.',
+          icon: 'repeat-variant',
+        },
+      ];
+    case 'X / Twitter':
+      return [
+        {
+          id: 'x-thread',
+          label: fr ? 'Thread X' : 'X thread',
+          question: fr
+            ? `Le thread ou les replies X confirment-ils ${topic} ?`
+            : `Do the X thread or replies confirm ${topic}?`,
+          detail: fr ? 'Utilise conversation_id, replies, citations et corrections.' : 'Uses conversation_id, replies, quotes, and corrections.',
+          icon: 'alpha-x-box-outline',
+        },
+        {
+          id: 'x-breaking',
+          label: fr ? 'Alerte / breaking' : 'Breaking claim',
+          question: fr
+            ? `Est-ce que l’alerte X sur ${topic} est confirmee par des sources fiables ?`
+            : `Is the X breaking claim about ${topic} confirmed by reliable sources?`,
+          detail: fr ? 'Cherche confirmations independantes et chronologie.' : 'Looks for independent confirmations and timeline.',
+          icon: 'newspaper-variant-outline',
+        },
+      ];
+    case 'Facebook':
+      return [
+        {
+          id: 'facebook-share',
+          label: fr ? 'Post Facebook' : 'Facebook post',
+          question: fr
+            ? `Le post Facebook sur ${topic} cite-t-il une source originale ou seulement une chaine de partages ?`
+            : `Does the Facebook post about ${topic} cite an original source or only a share chain?`,
+          detail: fr ? 'Detecte chaines virales, vieux posts et groupes suspects.' : 'Detects viral chains, old posts, and suspicious groups.',
+          icon: 'facebook',
+        },
+      ];
+    case 'LinkedIn':
+      return [
+        {
+          id: 'linkedin-business',
+          label: fr ? 'Claim business' : 'Business claim',
+          question: fr
+            ? `La promesse LinkedIn sur ${topic} est-elle prouvee par des chiffres ou cas verifiables ?`
+            : `Is the LinkedIn claim about ${topic} backed by numbers or verifiable cases?`,
+          detail: fr ? 'Verifie preuve, conflit d’interet et exageration marketing.' : 'Checks evidence, conflicts of interest, and marketing exaggeration.',
+          icon: 'linkedin',
+        },
+      ];
+    case 'Reddit':
+      return [
+        {
+          id: 'reddit-discussion',
+          label: fr ? 'Discussion Reddit' : 'Reddit discussion',
+          question: fr
+            ? `Le fil Reddit apporte-t-il des preuves ou seulement des opinions sur ${topic} ?`
+            : `Does the Reddit thread provide evidence or only opinions about ${topic}?`,
+          detail: fr ? 'Pese commentaires contradictoires, sources et consensus.' : 'Weighs contradictory comments, sources, and consensus.',
+          icon: 'reddit',
+        },
+      ];
+    case 'YouTube Shorts':
+      return [
+        {
+          id: 'youtube-short',
+          label: fr ? 'Short video' : 'Short video',
+          question: fr
+            ? `Le YouTube Short sur ${topic} coupe-t-il une sequence plus longue qui change le sens ?`
+            : `Does the YouTube Short about ${topic} cut a longer clip that changes the meaning?`,
+          detail: fr ? 'Cherche video originale, description, date et commentaires.' : 'Looks for original video, description, date, and comments.',
+          icon: 'youtube',
+        },
+      ];
+    case 'Threads':
+      return [
+        {
+          id: 'threads-context',
+          label: fr ? 'Contexte Threads' : 'Threads context',
+          question: fr
+            ? `La conversation Threads autour de ${topic} ajoute-t-elle du contexte ou des corrections ?`
+            : `Does the Threads conversation around ${topic} add context or corrections?`,
+          detail: fr ? 'Cherche replies, reposts et source initiale.' : 'Looks for replies, reposts, and initial source.',
+          icon: 'at',
+        },
+      ];
+    case 'Leboncoin':
+      return [
+        {
+          id: 'leboncoin-scam',
+          label: fr ? 'Annonce Leboncoin' : 'Leboncoin listing',
+          question: fr
+            ? `Cette annonce Leboncoin sur ${topic} montre-t-elle des signaux d’arnaque ?`
+            : `Does this Leboncoin listing about ${topic} show scam signals?`,
+          detail: fr ? 'Prix trop bas, paiement externe, urgence, photos et incoherences.' : 'Low price, external payment, urgency, photos, and inconsistencies.',
+          icon: 'tag-search-outline',
+        },
+      ];
+    default:
+      return [];
+  }
 }
 
 function extractQuestionTopic(content: string) {
@@ -1477,7 +1741,7 @@ export default function HomeScreen() {
 
   function openAiQuestionModal() {
     Keyboard.dismiss();
-    const firstSuggestion = questionSuggestions[0] ?? '';
+    const firstSuggestion = questionSuggestions[0]?.question ?? '';
     setVerificationQuestion(firstSuggestion);
     setQuestionModalVisible(true);
   }
@@ -2523,27 +2787,60 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.questionSuggestionList}>
-              {questionSuggestions.map((question) => (
+              {questionSuggestions.map((suggestion) => {
+                const selected = verificationQuestion === suggestion.question;
+
+                return (
                 <Pressable
                   accessibilityRole="button"
-                  key={question}
-                  onPress={() => setVerificationQuestion(question)}
+                  key={suggestion.id}
+                  onPress={() => setVerificationQuestion(suggestion.question)}
                   style={[
                     styles.questionSuggestion,
                     {
-                      backgroundColor: verificationQuestion === question ? palette.ink : palette.surfaceMuted,
-                      borderColor: verificationQuestion === question ? palette.ink : palette.border,
+                      backgroundColor: selected ? palette.ink : palette.surfaceMuted,
+                      borderColor: selected ? palette.ink : palette.border,
                     },
                   ]}>
+                  <View style={styles.questionSuggestionHeader}>
+                    <View
+                      style={[
+                        styles.questionSuggestionIcon,
+                        { backgroundColor: selected ? palette.accent : palette.chip },
+                      ]}>
+                      <MaterialCommunityIcons
+                        name={suggestion.icon}
+                        size={15}
+                        color={selected ? palette.ink : palette.muted}
+                      />
+                    </View>
+                    <View style={styles.questionSuggestionCopy}>
+                      <Text
+                        style={[
+                          styles.questionSuggestionLabel,
+                          { color: selected ? palette.accent : palette.muted },
+                        ]}>
+                        {suggestion.label}
+                      </Text>
                   <Text
                     style={[
                       styles.questionSuggestionText,
-                      { color: verificationQuestion === question ? palette.inkText : palette.text },
+                            { color: selected ? palette.inkText : palette.text },
                     ]}>
-                    {question}
+                        {suggestion.question}
                   </Text>
+                      <Text
+                        style={[
+                          styles.questionSuggestionDetail,
+                          { color: selected ? palette.inkText : palette.muted },
+                        ]}>
+                        {suggestion.detail}
+                      </Text>
+                    </View>
+                  </View>
                 </Pressable>
-              ))}
+                );
+              })}
             </View>
 
             <TextInput
@@ -4547,15 +4844,42 @@ const styles = StyleSheet.create({
   questionSuggestion: {
     borderRadius: 14,
     borderWidth: 1,
-    minHeight: 48,
+    minHeight: 72,
     justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  questionSuggestionHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  questionSuggestionIcon: {
+    alignItems: 'center',
+    borderRadius: 11,
+    height: 30,
+    justifyContent: 'center',
+    marginTop: 2,
+    width: 30,
+  },
+  questionSuggestionCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  questionSuggestionLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   questionSuggestionText: {
     fontSize: 14,
     fontWeight: '900',
     lineHeight: 20,
+  },
+  questionSuggestionDetail: {
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
   },
   questionInput: {
     borderRadius: 15,
