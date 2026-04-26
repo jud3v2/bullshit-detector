@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 import type { AdvancedAiAnalysis } from './ai-gateway-client';
-import type { DetectionResult } from './detector';
+import type { DetectionResult } from './analysis-result';
 import type { SocialUrlContext } from './social-url';
 
 export type AnalysisHistoryEntry = {

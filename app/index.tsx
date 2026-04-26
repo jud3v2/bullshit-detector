@@ -35,9 +35,9 @@ import {
   usesSupabaseAnalyzeBackend,
   type AdvancedAiAnalysis,
 } from '@/lib/ai-gateway-client';
+import type { DetectionResult, RiskLevel } from '@/lib/analysis-result';
 import { saveAnalysisHistoryEntry } from '@/lib/analysis-history';
 import { syncBillingFromSupabase } from '@/lib/billing-sync';
-import type { DetectionResult, RiskLevel } from '@/lib/detector';
 import { examplesByLanguage, translations, type Language } from '@/lib/i18n';
 import {
   analyzeSocialUrl,
