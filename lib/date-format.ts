@@ -40,8 +40,7 @@ export function formatRelativeDate(value: string | number | Date | null | undefi
   const dayDelta = Math.round((startOfDate - startOfToday) / 86_400_000);
 
   if (Math.abs(dayDelta) <= 7) {
-    const formatter = new Intl.RelativeTimeFormat(localeByLanguage[language], { numeric: 'auto' });
-    return formatter.format(dayDelta, 'day');
+    return formatRelativeDayFallback(dayDelta, language);
   }
 
   return formatHumanDate(date, language);
@@ -70,4 +69,26 @@ function toDate(value: string | number | Date | null | undefined) {
 
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatRelativeDayFallback(dayDelta: number, language: Language) {
+  const relativeTimeFormat = Intl.RelativeTimeFormat;
+
+  if (relativeTimeFormat) {
+    return new relativeTimeFormat(localeByLanguage[language], { numeric: 'auto' }).format(dayDelta, 'day');
+  }
+
+  if (language === 'fr') {
+    if (dayDelta === -1) return 'hier';
+    if (dayDelta === 0) return 'aujourd’hui';
+    if (dayDelta === 1) return 'demain';
+    if (dayDelta < 0) return `il y a ${Math.abs(dayDelta)} jours`;
+    return `dans ${dayDelta} jours`;
+  }
+
+  if (dayDelta === -1) return 'yesterday';
+  if (dayDelta === 0) return 'today';
+  if (dayDelta === 1) return 'tomorrow';
+  if (dayDelta < 0) return `${Math.abs(dayDelta)} days ago`;
+  return `in ${dayDelta} days`;
 }

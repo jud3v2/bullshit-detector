@@ -16,6 +16,7 @@ export default function RootLayout() {
         <Stack.Screen name="analysis" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen name="account" options={{ headerShown: false }} />
+        <Stack.Screen name="native" options={{ headerShown: false }} />
         <Stack.Screen name="connector/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="subscription" options={{ headerShown: false }} />
         <Stack.Screen name="history" options={{ headerShown: false }} />

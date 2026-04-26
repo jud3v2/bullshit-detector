@@ -156,6 +156,13 @@ export default function UserDashboard() {
             color="#E11D48"
             onPress={() => router.push('/settings' as never)}
           />
+          <DashboardAction
+            icon="cellphone-cog"
+            title={copy.nativeDashboard}
+            subtitle={copy.nativeHint}
+            color="#F59E0B"
+            onPress={() => router.push('/native' as never)}
+          />
         </View>
 
         <View style={styles.section}>
@@ -275,6 +282,8 @@ const dashboardCopy = {
     noAnalysis: 'No AI analysis yet',
     settings: 'Settings',
     settingsHint: 'Language, theme, connectors',
+    nativeDashboard: 'Native layer',
+    nativeHint: 'Widgets, Live Activities, Dynamic Island',
     usageTitle: 'Quota overview',
     refreshing: 'Refreshing',
     live: 'Live',
@@ -302,6 +311,8 @@ const dashboardCopy = {
     noAnalysis: 'Aucune analyse IA pour le moment',
     settings: 'Parametres',
     settingsHint: 'Langue, theme, connecteurs',
+    nativeDashboard: 'Couche native',
+    nativeHint: 'Widgets, Live Activities, Dynamic Island',
     usageTitle: 'Vue des quotas',
     refreshing: 'Actualisation',
     live: 'En direct',
