@@ -6,17 +6,34 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { readAnalysisHistory, type AnalysisHistoryEntry } from '@/lib/analysis-history';
 import { redirectToLoginIfNeeded } from '@/lib/auth-redirect';
+import { formatHumanDateTime } from '@/lib/date-format';
+import type { Language } from '@/lib/i18n';
+import { readJson, SETTINGS_KEY } from '@/lib/social-vault';
+
+type AppSettings = {
+  language: Language;
+  themeMode: 'system' | 'white' | 'dark' | 'auto';
+};
 
 export default function HistoryScreen() {
   const [history, setHistory] = useState<AnalysisHistoryEntry[]>([]);
+  const [language, setLanguage] = useState<Language>('en');
 
   useEffect(() => {
     redirectToLoginIfNeeded();
-    readAnalysisHistory().then(setHistory).catch((error) => {
-      console.log('[BullshitDetector] History screen load failed', {
-        message: error instanceof Error ? error.message : 'Unknown error',
+    Promise.all([
+      readAnalysisHistory(),
+      readJson<AppSettings>(SETTINGS_KEY, { language: 'en', themeMode: 'system' }),
+    ])
+      .then(([nextHistory, settings]) => {
+        setHistory(nextHistory);
+        setLanguage(settings.language);
+      })
+      .catch((error) => {
+        console.log('[BullshitDetector] History screen load failed', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
       });
-    });
   }, []);
 
   return (
@@ -38,7 +55,7 @@ export default function HistoryScreen() {
         {history.length ? (
           <View style={styles.list}>
             {history.map((entry) => (
-              <HistoryCard key={entry.id} entry={entry} />
+              <HistoryCard key={entry.id} entry={entry} language={language} />
             ))}
           </View>
         ) : (
@@ -53,7 +70,7 @@ export default function HistoryScreen() {
   );
 }
 
-function HistoryCard({ entry }: { entry: AnalysisHistoryEntry }) {
+function HistoryCard({ entry, language }: { entry: AnalysisHistoryEntry; language: Language }) {
   const riskColor = entry.risk === 'faible' ? '#10B981' : entry.risk === 'moyen' ? '#F59E0B' : '#EF4444';
 
   return (
@@ -67,7 +84,7 @@ function HistoryCard({ entry }: { entry: AnalysisHistoryEntry }) {
             {entry.platform ?? (entry.inputType === 'url' ? 'URL analysee' : 'Texte analyse')}
           </Text>
           <Text style={styles.cardMeta}>
-            {new Date(entry.createdAt).toLocaleString('fr-FR')} · IA
+            {formatHumanDateTime(entry.createdAt, language)} · IA
           </Text>
         </View>
         <View style={[styles.riskPill, { backgroundColor: `${riskColor}1A` }]}>

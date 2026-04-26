@@ -12,6 +12,10 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="analyze" options={{ headerShown: false }} />
+        <Stack.Screen name="analysis" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="account" options={{ headerShown: false }} />
         <Stack.Screen name="connector/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="subscription" options={{ headerShown: false }} />
         <Stack.Screen name="history" options={{ headerShown: false }} />

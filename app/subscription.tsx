@@ -8,6 +8,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { redirectToLoginIfNeeded } from '@/lib/auth-redirect';
 import { readAnalysisHistory, type AnalysisHistoryEntry } from '@/lib/analysis-history';
 import { syncBillingFromSupabase } from '@/lib/billing-sync';
+import { formatHumanDate, formatResetDate } from '@/lib/date-format';
+import type { Language } from '@/lib/i18n';
+import { readJson, SETTINGS_KEY } from '@/lib/social-vault';
 import {
   nextResetAt,
   readSubscriptionState,
@@ -22,6 +25,11 @@ import {
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
+
+type AppSettings = {
+  language: Language;
+  themeMode: 'system' | 'white' | 'dark' | 'auto';
+};
 
 function getCreditLimit(plan: SubscriptionPlan) {
   if (plan.id === 'free') {
@@ -47,23 +55,11 @@ function getPercent(used: number, limit: number) {
   return Math.min(Math.round((used / limit) * 100), 100);
 }
 
-function formatReset(value?: string) {
-  if (!value) {
-    return '-';
-  }
-
-  return new Date(value).toLocaleString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 export default function SubscriptionScreen() {
   const [subscription, setSubscription] = useState<SubscriptionState | null>(null);
   const [usage, setUsage] = useState<UsageState | null>(null);
   const [history, setHistory] = useState<AnalysisHistoryEntry[]>([]);
+  const [language, setLanguage] = useState<Language>('en');
 
   useEffect(() => {
     redirectToLoginIfNeeded();
@@ -72,16 +68,18 @@ export default function SubscriptionScreen() {
 
   async function refresh() {
     try {
-      const [remoteBilling, fallbackSubscription, fallbackUsage, nextHistory] = await Promise.all([
+      const [remoteBilling, fallbackSubscription, fallbackUsage, nextHistory, settings] = await Promise.all([
         syncBillingFromSupabase(),
         readSubscriptionState(),
         readUsageState(),
         readAnalysisHistory(),
+        readJson<AppSettings>(SETTINGS_KEY, { language: 'en', themeMode: 'system' }),
       ]);
 
       setSubscription(remoteBilling?.subscription ?? fallbackSubscription);
       setUsage(remoteBilling?.usage ?? fallbackUsage);
       setHistory(nextHistory);
+      setLanguage(settings.language);
     } catch (error) {
       console.log('[BullshitDetector] Subscription screen refresh failed', {
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -166,7 +164,7 @@ export default function SubscriptionScreen() {
             icon="chart-donut"
             label={activePlan.id === 'free' ? 'Analyses IA gratuites' : 'Credits IA hebdomadaires'}
             value={`${usedCredits}/${creditLimit}`}
-            helper={`Reset ${formatReset(activePlan.id === 'free' ? monthReset : weekReset)}`}
+            helper={`Reset ${formatResetDate(activePlan.id === 'free' ? monthReset : weekReset, language)}`}
             percent={creditPercent}
             accent="#7C3AED"
           />
@@ -175,7 +173,7 @@ export default function SubscriptionScreen() {
               icon="calendar-month"
               label="Limite mensuelle gratuite"
               value={`${usage?.month.usedAnalyses ?? 0}/${activePlan.monthlyAnalyses}`}
-              helper={`Passe a Starter pour continuer apres ${formatReset(monthReset)}`}
+              helper={`Passe a Starter pour continuer apres ${formatResetDate(monthReset, language)}`}
               percent={monthlyPercent}
               accent="#F59E0B"
             />
@@ -184,7 +182,7 @@ export default function SubscriptionScreen() {
             icon="calendar-week"
             label="Analyses cette semaine"
             value={`${usage?.week.usedAnalyses ?? 0}/${activePlan.weeklyAnalyses}`}
-            helper={`Protection budget + reset ${formatReset(weekReset)}`}
+            helper={`Protection budget + reset ${formatResetDate(weekReset, language)}`}
             percent={weeklyPercent}
             accent="#0EA5E9"
           />
@@ -192,7 +190,7 @@ export default function SubscriptionScreen() {
             icon="clock-fast"
             label="Anti-pic horaire"
             value={`${usage?.hour.usedAnalyses ?? 0}/${activePlan.hourlyAnalyses}`}
-            helper={`Reset ${formatReset(hourReset)}`}
+            helper={`Reset ${formatResetDate(hourReset, language)}`}
             percent={hourlyPercent}
             accent="#10B981"
           />
@@ -279,7 +277,7 @@ export default function SubscriptionScreen() {
           {previewHistory.length ? (
             <View style={styles.historyList}>
               {previewHistory.map((entry) => (
-                <HistoryRow key={entry.id} entry={entry} />
+                <HistoryRow key={entry.id} entry={entry} language={language} />
               ))}
             </View>
           ) : (
@@ -348,7 +346,7 @@ function LimitPill({ value, label }: { value: string; label: string }) {
   );
 }
 
-function HistoryRow({ entry }: { entry: AnalysisHistoryEntry }) {
+function HistoryRow({ entry, language }: { entry: AnalysisHistoryEntry; language: Language }) {
   const riskColor = entry.risk === 'faible' ? '#10B981' : entry.risk === 'moyen' ? '#F59E0B' : '#EF4444';
 
   return (
@@ -362,7 +360,7 @@ function HistoryRow({ entry }: { entry: AnalysisHistoryEntry }) {
         </Text>
         <Text style={styles.historyPreview} numberOfLines={2}>{entry.preview}</Text>
         <Text style={styles.historyMeta}>
-                      {new Date(entry.createdAt).toLocaleDateString('fr-FR')} · IA
+          {formatHumanDate(entry.createdAt, language)} · IA
           {entry.aiVerdict ? ` · ${entry.aiVerdict}` : ''}
         </Text>
       </View>
