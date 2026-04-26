@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LiquidGlass } from '@/components/liquid-glass';
 import { readAnalysisHistory, type AnalysisHistoryEntry } from '@/lib/analysis-history';
 import { redirectToLoginIfNeeded } from '@/lib/auth-redirect';
 import { formatHumanDateTime } from '@/lib/date-format';
@@ -74,7 +75,7 @@ function HistoryCard({ entry, language }: { entry: AnalysisHistoryEntry; languag
   const riskColor = entry.risk === 'faible' ? '#10B981' : entry.risk === 'moyen' ? '#F59E0B' : '#EF4444';
 
   return (
-    <View style={styles.card}>
+    <LiquidGlass style={styles.card} contentStyle={styles.cardContent}>
       <View style={styles.cardTop}>
         <View style={[styles.scoreBadge, { borderColor: riskColor }]}>
           <Text style={[styles.scoreText, { color: riskColor }]}>{entry.score}</Text>
@@ -117,7 +118,7 @@ function HistoryCard({ entry, language }: { entry: AnalysisHistoryEntry; languag
           </Text>
         </View>
       ) : null}
-    </View>
+    </LiquidGlass>
   );
 }
 
@@ -172,10 +173,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#CBD5E1',
     borderRadius: 18,
-    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  cardContent: {
     gap: 10,
     padding: 16,
   },

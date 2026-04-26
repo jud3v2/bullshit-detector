@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LiquidGlass } from '@/components/liquid-glass';
 import { redirectToLoginIfNeeded } from '@/lib/auth-redirect';
 import { readAnalysisHistory, type AnalysisHistoryEntry } from '@/lib/analysis-history';
 import { syncBillingFromSupabase } from '@/lib/billing-sync';
@@ -152,7 +153,7 @@ export default function SubscriptionScreen() {
           </View>
         </LinearGradient>
 
-        <View style={styles.section}>
+        <LiquidGlass style={styles.section} contentStyle={styles.sectionContent}>
           <View style={styles.sectionTitleRow}>
             <View>
               <Text style={styles.sectionTitle}>Utilisation actuelle</Text>
@@ -194,7 +195,7 @@ export default function SubscriptionScreen() {
             percent={hourlyPercent}
             accent="#10B981"
           />
-        </View>
+        </LiquidGlass>
 
         <View style={styles.routingPanel}>
           <View style={styles.routingIcon}>
@@ -261,7 +262,7 @@ export default function SubscriptionScreen() {
           })}
         </View>
 
-        <View style={styles.historySection}>
+        <LiquidGlass style={styles.historySection} contentStyle={styles.historySectionContent}>
           <View style={styles.historyTitleRow}>
             <View style={styles.historyTitleCopy}>
               <Text style={styles.sectionTitle}>Historique local</Text>
@@ -286,7 +287,7 @@ export default function SubscriptionScreen() {
               <Text style={styles.emptyHistoryText}>Les prochaines analyses apparaitront ici.</Text>
             </View>
           )}
-        </View>
+        </LiquidGlass>
 
         <View style={styles.nativePanel}>
           <MaterialCommunityIcons name="cellphone-lock" size={22} color="#101014" />
@@ -464,10 +465,10 @@ const styles = StyleSheet.create({
     width: 46,
   },
   section: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#CBD5E1',
     borderRadius: 20,
-    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  sectionContent: {
     gap: 12,
     padding: 18,
   },
@@ -691,10 +692,10 @@ const styles = StyleSheet.create({
     color: '#101014',
   },
   historySection: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#CBD5E1',
     borderRadius: 20,
-    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  historySectionContent: {
     gap: 12,
     padding: 18,
   },

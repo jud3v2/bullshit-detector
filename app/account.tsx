@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Session } from '@supabase/supabase-js';
 
+import { LiquidGlass } from '@/components/liquid-glass';
 import { redirectToLoginIfNeeded } from '@/lib/auth-redirect';
 import { formatHumanDateTime } from '@/lib/date-format';
 import type { Language } from '@/lib/i18n';
@@ -73,11 +74,11 @@ export default function AccountDashboard() {
           </Text>
         </View>
 
-        <View style={styles.section}>
+        <LiquidGlass style={styles.section} contentStyle={styles.sectionContent}>
           <AccountRow icon="shield-check-outline" label={copy.authProvider} value={session?.user.app_metadata?.provider ?? 'email'} />
           <AccountRow icon="email-check-outline" label={copy.emailStatus} value={session?.user.email_confirmed_at ? copy.confirmed : copy.pending} />
           <AccountRow icon="clock-outline" label={copy.lastSignIn} value={formatHumanDateTime(session?.user.last_sign_in_at, language)} />
-        </View>
+        </LiquidGlass>
 
         <View style={styles.actions}>
           <Pressable accessibilityRole="button" onPress={() => router.push('/subscription')} style={styles.primaryButton}>
@@ -201,10 +202,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   section: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#D8E0EB',
     borderRadius: 20,
-    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  sectionContent: {
     gap: 8,
     padding: 14,
   },

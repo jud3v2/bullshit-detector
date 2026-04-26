@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Session } from '@supabase/supabase-js';
 
+import { LiquidGlass } from '@/components/liquid-glass';
 import { readAnalysisHistory, type AnalysisHistoryEntry } from '@/lib/analysis-history';
 import { syncBillingFromSupabase } from '@/lib/billing-sync';
 import { formatHumanDateTime, formatResetDate } from '@/lib/date-format';
@@ -165,7 +166,7 @@ export default function UserDashboard() {
           />
         </View>
 
-        <View style={styles.section}>
+        <LiquidGlass style={styles.section} contentStyle={styles.sectionContent}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{copy.usageTitle}</Text>
             <Text style={styles.sectionMeta}>{loading ? copy.refreshing : copy.live}</Text>
@@ -174,9 +175,9 @@ export default function UserDashboard() {
           <UsageBar label={copy.month} value={monthUsed} limit={activePlan.monthlyAnalyses} color="#2563EB" />
           <UsageBar label={copy.week} value={weekUsed} limit={activePlan.weeklyAnalyses} color="#7C3AED" />
           <UsageBar label={copy.hour} value={hourUsed} limit={activePlan.hourlyAnalyses} color="#0F766E" />
-        </View>
+        </LiquidGlass>
 
-        <View style={styles.section}>
+        <LiquidGlass style={styles.section} contentStyle={styles.sectionContent}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{copy.recentTitle}</Text>
             <Pressable accessibilityRole="button" onPress={() => router.push('/history')}>
@@ -204,7 +205,7 @@ export default function UserDashboard() {
               <Text style={styles.emptyText}>{copy.emptyHistory}</Text>
             </View>
           ) : null}
-        </View>
+        </LiquidGlass>
       </ScrollView>
     </SafeAreaView>
   );
@@ -234,11 +235,14 @@ function DashboardAction({
 }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.actionCard}>
-      <View style={[styles.actionIcon, { backgroundColor: `${color}1A` }]}>
-        <MaterialCommunityIcons name={icon} size={22} color={color} />
+      <LiquidGlass style={StyleSheet.absoluteFill} />
+      <View style={styles.actionCardContent}>
+        <View style={[styles.actionIcon, { backgroundColor: `${color}1A` }]}>
+          <MaterialCommunityIcons name={icon} size={22} color={color} />
+        </View>
+        <Text style={styles.actionTitle}>{title}</Text>
+        <Text style={styles.actionSubtitle}>{subtitle}</Text>
       </View>
-      <Text style={styles.actionTitle}>{title}</Text>
-      <Text style={styles.actionSubtitle}>{subtitle}</Text>
     </Pressable>
   );
 }
@@ -405,14 +409,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#D8E0EB',
     borderRadius: 18,
-    borderWidth: 1,
+    minHeight: 146,
+    overflow: 'hidden',
+    width: '48%',
+  },
+  actionCardContent: {
     gap: 8,
     minHeight: 146,
     padding: 15,
-    width: '48%',
   },
   actionIcon: {
     alignItems: 'center',
@@ -432,10 +437,10 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   section: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#D8E0EB',
     borderRadius: 20,
-    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  sectionContent: {
     gap: 14,
     padding: 16,
   },

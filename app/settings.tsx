@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LiquidGlass } from '@/components/liquid-glass';
 import { redirectToLoginIfNeeded } from '@/lib/auth-redirect';
 import type { Language } from '@/lib/i18n';
 import { formatHumanDate } from '@/lib/date-format';
@@ -78,7 +79,7 @@ export default function SettingsDashboard() {
           </View>
         </View>
 
-        <View style={styles.section}>
+        <LiquidGlass style={styles.section} contentStyle={styles.sectionContent}>
           <Text style={styles.sectionTitle}>{copy.language}</Text>
           <View style={styles.segment}>
             {(['en', 'fr'] as const).map((item) => (
@@ -93,9 +94,9 @@ export default function SettingsDashboard() {
               </Pressable>
             ))}
           </View>
-        </View>
+        </LiquidGlass>
 
-        <View style={styles.section}>
+        <LiquidGlass style={styles.section} contentStyle={styles.sectionContent}>
           <Text style={styles.sectionTitle}>{copy.theme}</Text>
           <View style={styles.themeGrid}>
             {(['system', 'white', 'dark', 'auto'] as const).map((mode) => (
@@ -109,9 +110,9 @@ export default function SettingsDashboard() {
               </Pressable>
             ))}
           </View>
-        </View>
+        </LiquidGlass>
 
-        <View style={styles.section}>
+        <LiquidGlass style={styles.section} contentStyle={styles.sectionContent}>
           <View style={styles.sectionHeader}>
             <View>
               <Text style={styles.sectionTitle}>{copy.connectors}</Text>
@@ -144,7 +145,7 @@ export default function SettingsDashboard() {
               </Pressable>
             );
           })}
-        </View>
+        </LiquidGlass>
       </ScrollView>
     </SafeAreaView>
   );
@@ -226,10 +227,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   section: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#D8E0EB',
     borderRadius: 20,
-    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  sectionContent: {
     gap: 14,
     padding: 16,
   },

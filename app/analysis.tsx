@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LiquidGlass } from '@/components/liquid-glass';
 import { readAnalysisHistory, type AnalysisHistoryEntry } from '@/lib/analysis-history';
 import { redirectToLoginIfNeeded } from '@/lib/auth-redirect';
 import { formatHumanDateTime } from '@/lib/date-format';
@@ -86,7 +87,7 @@ export default function AnalysisDashboard() {
           <StatCard icon="alert-octagon-outline" label={copy.highRisk} value={String(stats.high)} color="#EF4444" />
         </View>
 
-        <View style={styles.section}>
+        <LiquidGlass style={styles.section} contentStyle={styles.sectionContent}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{copy.latest}</Text>
             <Pressable accessibilityRole="button" onPress={() => router.push('/history')}>
@@ -114,7 +115,7 @@ export default function AnalysisDashboard() {
               </Pressable>
             </View>
           )}
-        </View>
+        </LiquidGlass>
       </ScrollView>
     </SafeAreaView>
   );
@@ -123,11 +124,14 @@ export default function AnalysisDashboard() {
 function StatCard({ icon, label, value, color }: { icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string; value: string; color: string }) {
   return (
     <View style={styles.statCard}>
+      <LiquidGlass style={StyleSheet.absoluteFill} />
+      <View style={styles.statCardContent}>
       <View style={[styles.statIcon, { backgroundColor: `${color}1A` }]}>
         <MaterialCommunityIcons name={icon} size={20} color={color} />
       </View>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+      </View>
     </View>
   );
 }
@@ -247,13 +251,16 @@ const styles = StyleSheet.create({
   },
   statCard: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#D8E0EB',
     borderRadius: 18,
-    borderWidth: 1,
+    flex: 1,
+    minHeight: 122,
+    overflow: 'hidden',
+  },
+  statCardContent: {
+    alignItems: 'center',
     flex: 1,
     gap: 6,
-    minHeight: 122,
+    justifyContent: 'center',
     padding: 12,
   },
   statIcon: {
@@ -275,10 +282,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   section: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#D8E0EB',
     borderRadius: 20,
-    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  sectionContent: {
     gap: 14,
     padding: 16,
   },

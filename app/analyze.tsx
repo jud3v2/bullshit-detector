@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Animated,
   AppState,
@@ -26,6 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LiquidGlass, LiquidGlassButton, LiquidMetric, isLiquidGlassPlatform } from '@/components/liquid-glass';
 import { ShareSourcePill } from '@/components/share-source-pill';
 import {
   AdvancedAiRequestError,
@@ -899,6 +900,13 @@ export default function HomeScreen() {
   const [questionModalVisible, setQuestionModalVisible] = useState(false);
   const [verificationQuestion, setVerificationQuestion] = useState('');
   const [analysisStep, setAnalysisStep] = useState('');
+  const [expandedAnalysisSections, setExpandedAnalysisSections] = useState<Record<string, boolean>>({
+    essentials: true,
+    signals: false,
+    context: false,
+    sources: false,
+    full: false,
+  });
   const [aiPressed, setAiPressed] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [authEmail, setAuthEmail] = useState('');
@@ -939,6 +947,7 @@ export default function HomeScreen() {
   const supabaseReady = isSupabaseConfigured();
   const hasAcceptedCurrentTerms = profileTerms.termsVersion === TERMS_VERSION && Boolean(profileTerms.termsAcceptedAt);
   const appUnlocked = supabaseReady && Boolean(authSession) && hasAcceptedCurrentTerms && !passwordRecoveryActive;
+  const liquidGlass = isLiquidGlassPlatform();
   const usedCredits = activePlan.id === 'free' ? usage?.month.usedAnalyses ?? 0 : usage ? Math.round(usage.week.usedBudgetCents / 2) : 0;
   const creditLimit = activePlan.id === 'free' ? activePlan.monthlyAnalyses : Math.max(Math.round(activePlan.aiBudgetCentsWeekly / 2), 0);
   const creditPercent =
@@ -951,14 +960,6 @@ export default function HomeScreen() {
     eleve: t.riskHigh,
   };
 
-  const scoreLabel = useMemo(() => {
-    if (!result) {
-      return t.ready;
-    }
-
-    return `${result.score}/100`;
-  }, [result, t.ready]);
-
   const animateResult = useCallback(() => {
     fade.setValue(0);
     Animated.timing(fade, {
@@ -967,6 +968,13 @@ export default function HomeScreen() {
       useNativeDriver: true,
     }).start();
   }, [fade]);
+
+  const toggleAnalysisSection = useCallback((section: string) => {
+    setExpandedAnalysisSections((current) => ({
+      ...current,
+      [section]: !current[section],
+    }));
+  }, []);
 
   const hideToast = useCallback(() => {
     if (toastTimer.current) {
@@ -1416,6 +1424,13 @@ export default function HomeScreen() {
     setLimitNotice('');
     setAiErrorNotice('');
     setAnalysisMode('ai');
+    setExpandedAnalysisSections({
+      essentials: true,
+      signals: false,
+      context: false,
+      sources: false,
+      full: false,
+    });
 
     try {
       const serverBackedAi = usesSupabaseAnalyzeBackend();
@@ -1762,6 +1777,7 @@ export default function HomeScreen() {
   function applyExample(example: string) {
     setContent(example);
     setResult(null);
+    setAdvancedAi(null);
     setUrlContext(null);
   }
 
@@ -1769,6 +1785,7 @@ export default function HomeScreen() {
     setContent(value);
     setUrlContext(null);
     setAdvancedAi(null);
+    setResult(null);
     setCommentIndex(0);
   }
 
@@ -2761,6 +2778,314 @@ export default function HomeScreen() {
     );
   }
 
+  function renderGuidedAnalysisFlow() {
+    const platform = urlContext?.platform ?? detectPlatform(extractUrls(content.trim())[0] ?? content.trim()) ?? inputMode;
+    const activeStep = isAnalyzing ? 1 : result ? 2 : content.trim() ? 0 : -1;
+    const steps = [
+      {
+        icon: 'link-variant',
+        title: language === 'fr' ? 'Signal' : 'Signal',
+        detail: platform,
+      },
+      {
+        icon: 'target',
+        title: language === 'fr' ? 'Question' : 'Question',
+        detail: verificationQuestion || (language === 'fr' ? 'Guide IA' : 'AI guide'),
+      },
+      {
+        icon: 'shield-search',
+        title: language === 'fr' ? 'Verdict' : 'Verdict',
+        detail: result ? `${result.score}/100` : language === 'fr' ? 'A venir' : 'Pending',
+      },
+    ] satisfies {
+      icon: keyof typeof MaterialCommunityIcons.glyphMap;
+      title: string;
+      detail: string;
+    }[];
+
+    return (
+      <LiquidGlass
+        tone={resolvedTheme === 'dark' ? 'dark' : 'light'}
+        intensity={liquidGlass ? 62 : 0}
+        style={styles.flowRail}
+        contentStyle={styles.flowRailContent}>
+        {steps.map((step, index) => {
+          const active = index === activeStep || (result && index === 2);
+          const done = result ? index < 2 : index < activeStep;
+
+          return (
+            <View key={step.title} style={styles.flowStep}>
+              <View
+                style={[
+                  styles.flowStepIcon,
+                  {
+                    backgroundColor: active || done ? palette.ink : palette.surfaceMuted,
+                    borderColor: active || done ? palette.ink : palette.border,
+                  },
+                ]}>
+                <MaterialCommunityIcons
+                  name={done ? 'check' : step.icon}
+                  size={16}
+                  color={active || done ? palette.inkText : palette.muted}
+                />
+              </View>
+              <Text style={[styles.flowStepTitle, { color: palette.text }]}>{step.title}</Text>
+              <Text style={[styles.flowStepDetail, { color: palette.muted }]} numberOfLines={1}>
+                {step.detail}
+              </Text>
+            </View>
+          );
+        })}
+      </LiquidGlass>
+    );
+  }
+
+  function renderLiquidAnalysisResult() {
+    if (!result) {
+      return (
+        <LiquidGlass
+          tone={resolvedTheme === 'dark' ? 'dark' : 'light'}
+          intensity={liquidGlass ? 54 : 0}
+          style={styles.liquidResultShell}
+          contentStyle={styles.liquidResultContent}>
+          <View style={styles.emptyStateBox}>
+            <MaterialCommunityIcons name="text-search" size={28} color={palette.accent} />
+            <Text style={[styles.emptyTitle, { color: palette.panelText }]}>{t.emptyTitle}</Text>
+            <Text style={[styles.emptyState, { color: palette.panelMutedText }]}>{t.emptyResult}</Text>
+          </View>
+        </LiquidGlass>
+      );
+    }
+
+    const extracted = advancedAi?.extracted;
+    const context = advancedAi?.context;
+    const verificationSources = advancedAi ? buildVerificationSources(advancedAi, urlContext, language) : [];
+    const tone = result.risk === 'eleve' ? 'danger' : result.risk === 'moyen' ? 'warning' : 'success';
+    const confidence = advancedAi ? `${Math.round(advancedAi.confidence * 100)}%` : language === 'fr' ? 'IA' : 'AI';
+    const contentType = extracted?.content_type ?? (urlContext ? 'link' : 'text');
+    const shortDescription = advancedAi?.human_explanation || advancedAi?.summary || result.explanation;
+    const mainClaim = extracted?.main_claim || advancedAi?.summary || result.explanation;
+    const positiveSignals = [...toDisplayItems(extracted?.veracity_signals), ...toDisplayItems(extracted?.evidence_for)].slice(0, 4);
+    const negativeSignals = [...toDisplayItems(extracted?.bullshit_signals), ...toDisplayItems(extracted?.evidence_against), ...result.redFlags].slice(0, 5);
+    const contextItems = [
+      context?.source_name ? `${language === 'fr' ? 'Source' : 'Source'}: ${context.source_name}` : '',
+      context?.dates?.length ? `${language === 'fr' ? 'Dates' : 'Dates'}: ${context.dates.slice(0, 3).join(' / ')}` : '',
+      context?.locations?.length ? `${language === 'fr' ? 'Lieux' : 'Locations'}: ${context.locations.slice(0, 3).join(' / ')}` : '',
+      context?.context_quality ? `${language === 'fr' ? 'Qualite contexte' : 'Context quality'}: ${context.context_quality}` : '',
+      ...toDisplayItems(extracted?.missing_context).slice(0, 4),
+      urlContext?.limitation ?? '',
+    ].filter(Boolean);
+    const mediaItems = [
+      ...toDisplayItems(extracted?.key_elements).slice(0, 4),
+      ...toDisplayItems(extracted?.media_notes).slice(0, 3),
+      ...toDisplayItems(extracted?.comment_signals).slice(0, 3),
+    ].filter(Boolean);
+
+    return (
+      <LiquidGlass
+        tone={resolvedTheme === 'dark' ? 'dark' : 'light'}
+        intensity={liquidGlass ? 64 : 0}
+        style={styles.liquidResultShell}
+        contentStyle={styles.liquidResultContent}>
+        <View style={styles.liquidResultTop}>
+          <View style={[styles.scoreOrb, { borderColor: riskColor[result.risk] }]}>
+            <Text style={[styles.scoreOrbValue, { color: riskColor[result.risk] }]}>{result.score}</Text>
+            <Text style={[styles.scoreOrbLabel, { color: palette.panelMutedText }]}>/100</Text>
+          </View>
+          <View style={styles.liquidResultCopy}>
+            <Text style={[styles.liquidEyebrow, { color: palette.accent }]}>
+              {language === 'fr' ? 'Verdict IA' : 'AI verdict'}
+            </Text>
+            <Text style={[styles.liquidVerdict, { color: palette.panelText }]}>
+              {advancedAi?.verdict ?? riskCopy[result.risk]}
+            </Text>
+            <Text style={[styles.liquidDescription, { color: palette.panelMutedText }]} numberOfLines={5}>
+              {shortDescription}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.liquidMeterTrack, { backgroundColor: palette.panelMuted }]}>
+          <View style={[styles.liquidMeterFill, { backgroundColor: riskColor[result.risk], width: scorePercent }]} />
+        </View>
+
+        <View style={styles.liquidMetricRow}>
+          <LiquidMetric label={language === 'fr' ? 'Risque' : 'Risk'} value={riskCopy[result.risk]} tone={tone} />
+          <LiquidMetric label={language === 'fr' ? 'Confiance' : 'Confidence'} value={confidence} />
+          <LiquidMetric label={language === 'fr' ? 'Type' : 'Type'} value={contentType} />
+        </View>
+
+        {verificationQuestion ? (
+          <View style={[styles.userQuestionBox, { borderColor: palette.panelBorder, backgroundColor: palette.panelMuted }]}>
+            <MaterialCommunityIcons name="target" size={17} color={palette.accent} />
+            <Text style={[styles.userQuestionText, { color: palette.panelText }]}>{verificationQuestion}</Text>
+          </View>
+        ) : null}
+
+        <View style={[styles.claimPanel, { borderColor: palette.panelBorder, backgroundColor: palette.panelMuted }]}>
+          <Text style={[styles.claimLabel, { color: palette.panelMutedText }]}>
+            {language === 'fr' ? 'A retenir' : 'Main point'}
+          </Text>
+          <Text style={[styles.claimText, { color: palette.panelText }]}>{mainClaim}</Text>
+        </View>
+
+        {renderAnalysisDisclosure({
+          id: 'signals',
+          icon: 'radar',
+          title: language === 'fr' ? 'Signaux bullshit & veracite' : 'Bullshit & veracity signals',
+          summary:
+            negativeSignals.length || positiveSignals.length
+              ? `${negativeSignals.length} ${language === 'fr' ? 'red flags' : 'red flags'} / ${positiveSignals.length} ${language === 'fr' ? 'preuves' : 'supports'}`
+              : language === 'fr'
+                ? 'Aucun signal clair'
+                : 'No clear signal',
+          children: (
+            <View style={styles.signalColumns}>
+              {renderSignalColumn(language === 'fr' ? 'Red flags' : 'Red flags', negativeSignals, '#E5484D')}
+              {renderSignalColumn(language === 'fr' ? 'Veracite' : 'Veracity', positiveSignals, '#11A36A')}
+            </View>
+          ),
+        })}
+
+        {renderAnalysisDisclosure({
+          id: 'context',
+          icon: 'file-search-outline',
+          title: language === 'fr' ? 'Contexte extrait' : 'Extracted context',
+          summary: contextItems.length
+            ? contextItems.slice(0, 2).join(' · ')
+            : language === 'fr'
+              ? 'Contexte encore limite'
+              : 'Context still limited',
+          children: (
+            <View style={styles.contextStack}>
+              {renderBulletList(contextItems, language === 'fr' ? 'Aucun contexte supplementaire exploitable.' : 'No extra usable context.', palette.accent)}
+              {renderBulletList(mediaItems, language === 'fr' ? 'Aucun element media/commentaire clair.' : 'No clear media/comment element.', '#7C3AED')}
+              {renderCommentCarousel()}
+              {renderCollectionProof()}
+            </View>
+          ),
+        })}
+
+        {renderAnalysisDisclosure({
+          id: 'sources',
+          icon: 'link-variant',
+          title: language === 'fr' ? 'Sources a ouvrir' : 'Sources to open',
+          summary: verificationSources.length
+            ? `${verificationSources.length} ${language === 'fr' ? 'liens proposes' : 'suggested links'}`
+            : language === 'fr'
+              ? 'Aucune source directe'
+              : 'No direct source',
+          children: renderSourceList(verificationSources),
+        })}
+
+        {advancedAi
+          ? renderAnalysisDisclosure({
+              id: 'full',
+              icon: 'database-search-outline',
+              title: language === 'fr' ? 'Dossier IA complet' : 'Full AI file',
+              summary: language === 'fr' ? 'Details techniques et donnees structurees' : 'Technical details and structured data',
+              children: renderAdvancedAiPanel(),
+            })
+          : null}
+
+        <Text style={[styles.liquidDisclaimer, { color: palette.panelMutedText }]}>
+          {language === 'fr'
+            ? 'Cette analyse aide a evaluer la fiabilite. Elle ne remplace pas une preuve definitive ni une source primaire.'
+            : 'This analysis helps evaluate reliability. It is not definitive proof and does not replace a primary source.'}
+        </Text>
+      </LiquidGlass>
+    );
+  }
+
+  function renderAnalysisDisclosure({
+    children,
+    icon,
+    id,
+    summary,
+    title,
+  }: {
+    children: ReactNode;
+    icon: keyof typeof MaterialCommunityIcons.glyphMap;
+    id: string;
+    summary: string;
+    title: string;
+  }) {
+    const expanded = Boolean(expandedAnalysisSections[id]);
+
+    return (
+      <View style={[styles.disclosure, { borderColor: palette.panelBorder, backgroundColor: palette.panelMuted }]}>
+        <Pressable accessibilityRole="button" onPress={() => toggleAnalysisSection(id)} style={styles.disclosureHeader}>
+          <View style={[styles.disclosureIcon, { backgroundColor: palette.ink }]}>
+            <MaterialCommunityIcons name={icon} size={17} color={palette.inkText} />
+          </View>
+          <View style={styles.disclosureCopy}>
+            <Text style={[styles.disclosureTitle, { color: palette.panelText }]}>{title}</Text>
+            <Text style={[styles.disclosureSummary, { color: palette.panelMutedText }]} numberOfLines={expanded ? 2 : 1}>
+              {summary}
+            </Text>
+          </View>
+          <MaterialCommunityIcons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={22}
+            color={palette.panelMutedText}
+          />
+        </Pressable>
+        {expanded ? <View style={styles.disclosureBody}>{children}</View> : null}
+      </View>
+    );
+  }
+
+  function renderSignalColumn(title: string, items: string[], color: string) {
+    return (
+      <View style={[styles.signalColumn, { borderColor: palette.panelBorder }]}>
+        <Text style={[styles.signalColumnTitle, { color }]}>{title}</Text>
+        {renderBulletList(items, language === 'fr' ? 'Rien de solide detecte.' : 'Nothing solid detected.', color)}
+      </View>
+    );
+  }
+
+  function renderBulletList(items: string[], empty: string, color: string) {
+    const safeItems = items.length ? items : [empty];
+
+    return (
+      <View style={styles.bulletStack}>
+        {safeItems.map((item) => (
+          <View key={`${color}-${item}`} style={styles.bulletRow}>
+            <View style={[styles.bulletDot, { backgroundColor: color }]} />
+            <Text style={[styles.bulletText, { color: palette.panelText }]}>{item}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  function renderSourceList(sources: VerificationSource[]) {
+    if (!sources.length) {
+      return (
+        <Text style={[styles.bulletText, { color: palette.panelMutedText }]}>
+          {language === 'fr'
+            ? 'Ajoute une question plus precise ou une URL avec plus de contexte pour proposer des sources utiles.'
+            : 'Add a more precise question or a richer URL to suggest useful sources.'}
+        </Text>
+      );
+    }
+
+    return (
+      <View style={styles.sourceStack}>
+        {sources.map((source) => (
+          <LiquidGlassButton
+            icon={source.icon}
+            key={`${source.title}-${source.url}`}
+            label={source.title}
+            onPress={() => Linking.openURL(source.url).catch(() => undefined)}
+            subtitle={source.subtitle}
+            tone={resolvedTheme === 'dark' ? 'dark' : 'light'}
+          />
+        ))}
+      </View>
+    );
+  }
+
   function renderQuestionModal() {
     return (
       <Modal
@@ -2908,7 +3233,12 @@ export default function HomeScreen() {
     return (
       <>
         {renderQuestionModal()}
-        <View style={[styles.inputBlock, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+        {renderGuidedAnalysisFlow()}
+        <LiquidGlass
+          tone={resolvedTheme === 'dark' ? 'dark' : 'light'}
+          intensity={liquidGlass ? 48 : 0}
+          style={styles.inputBlock}
+          contentStyle={styles.inputBlockContent}>
           <ShareSourcePill loading={isAnalyzingUrl} message={sourcePillMessage} />
 
           {clipboardValue ? (
@@ -3031,12 +3361,11 @@ export default function HomeScreen() {
               </View>
             </Pressable>
           </View>
-        </View>
+        </LiquidGlass>
 
         <Animated.View
           style={[
             styles.resultBlock,
-            { backgroundColor: palette.panel },
             result && {
               opacity: fade,
               transform: [
@@ -3049,87 +3378,8 @@ export default function HomeScreen() {
               ],
             },
           ]}>
-          <View style={styles.scoreHeader}>
-            <View style={styles.scoreCopy}>
-              <Text style={[styles.resultLabel, { color: palette.panelMutedText }]}>{t.reliabilityScore}</Text>
-              <Text style={[styles.score, { color: palette.panelText }]}>{scoreLabel}</Text>
-              <Text style={[styles.scoreHint, { color: palette.panelMutedText }]}>{t.scoreHint}</Text>
-            </View>
-
-            {result ? (
-              <View style={[styles.riskBadge, { borderColor: riskColor[result.risk] }]}>
-                <View style={[styles.riskDot, { backgroundColor: riskColor[result.risk] }]} />
-                <Text style={[styles.riskText, { color: riskColor[result.risk] }]}>
-                  {riskCopy[result.risk]}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          <View style={[styles.meterTrack, { backgroundColor: palette.panelMuted }]}>
-            <View
-              style={[
-                styles.meterFill,
-                {
-                  width: scorePercent,
-                  backgroundColor: result ? riskColor[result.risk] : palette.panelBorder,
-                },
-              ]}
-            />
-          </View>
-
-          {result ? (
-            <View style={styles.resultDetails}>
-              {urlContext ? (
-                <View
-                  style={[
-                    styles.urlContextBox,
-                    { backgroundColor: palette.panelMuted, borderColor: palette.panelBorder },
-                  ]}>
-                  <Text style={[styles.contextTitle, { color: palette.accent }]}>
-                    {urlContext.platform}
-                  </Text>
-                  <Text style={[styles.contextText, { color: palette.panelText }]}>{urlContext.summary}</Text>
-                  {urlContext.commentsSummary ? (
-                    <Text style={[styles.contextMuted, { color: palette.panelMutedText }]}>
-                      {t.comments}: {urlContext.commentsSummary}
-                    </Text>
-                  ) : (
-                    <Text style={[styles.contextMuted, { color: palette.panelMutedText }]}>{urlContext.limitation}</Text>
-                  )}
-                  {renderCommentCarousel()}
-                  {renderCollectionProof()}
-                </View>
-              ) : null}
-
-              <Text style={[styles.explanation, { color: palette.panelText }]}>{result.explanation}</Text>
-              {renderAdvancedAiPanel()}
-              {renderAiErrorPanel()}
-
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: palette.panelText }]}>{t.redFlags}</Text>
-                {result.redFlags.map((flag) => (
-                  <View key={flag} style={styles.flagRow}>
-                    <View style={[styles.flagBullet, { backgroundColor: palette.accent }]} />
-                    <Text style={[styles.flagText, { color: palette.panelText }]}>{flag}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <View
-                style={[styles.suggestionBox, { backgroundColor: palette.panelMuted, borderColor: palette.panelBorder }]}>
-                <Text style={[styles.sectionTitle, { color: palette.panelText }]}>{t.suggestion}</Text>
-                <Text style={[styles.suggestionText, { color: palette.panelText }]}>{result.suggestion}</Text>
-              </View>
-            </View>
-          ) : (
-            <View
-              style={[styles.emptyStateBox, { backgroundColor: palette.panelMuted, borderColor: palette.panelBorder }]}>
-              <MaterialCommunityIcons name="text-search" size={26} color={palette.accent} />
-              <Text style={[styles.emptyTitle, { color: palette.panelText }]}>{t.emptyTitle}</Text>
-              <Text style={[styles.emptyState, { color: palette.panelMutedText }]}>{t.emptyResult}</Text>
-            </View>
-          )}
+          {renderLiquidAnalysisResult()}
+          {renderAiErrorPanel()}
         </Animated.View>
       </>
     );
@@ -4327,15 +4577,51 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   inputBlock: {
-    borderRadius: 20,
+    borderRadius: 26,
     borderWidth: 1,
-    gap: 14,
-    padding: 18,
+    overflow: 'hidden',
     shadowColor: '#111318',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.08,
     shadowRadius: 22,
     elevation: 3,
+  },
+  inputBlockContent: {
+    gap: 14,
+    padding: 18,
+  },
+  flowRail: {
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  flowRailContent: {
+    flexDirection: 'row',
+    gap: 8,
+    padding: 10,
+  },
+  flowStep: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 5,
+    minHeight: 84,
+    justifyContent: 'center',
+  },
+  flowStepIcon: {
+    alignItems: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  flowStepTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  flowStepDetail: {
+    fontSize: 11,
+    fontWeight: '800',
+    maxWidth: '100%',
   },
   clipboardButton: {
     alignItems: 'center',
@@ -4505,9 +4791,188 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   resultBlock: {
-    borderRadius: 20,
-    gap: 18,
-    padding: 20,
+    borderRadius: 26,
+    gap: 12,
+    padding: 0,
+  },
+  liquidResultShell: {
+    borderRadius: 28,
+    overflow: 'hidden',
+  },
+  liquidResultContent: {
+    gap: 14,
+    padding: 16,
+  },
+  liquidResultTop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 14,
+  },
+  scoreOrb: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.26)',
+    borderRadius: 26,
+    borderWidth: 1,
+    height: 92,
+    justifyContent: 'center',
+    width: 92,
+  },
+  scoreOrbValue: {
+    fontSize: 34,
+    fontWeight: '900',
+    lineHeight: 38,
+  },
+  scoreOrbLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  liquidResultCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  liquidEyebrow: {
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  liquidVerdict: {
+    fontSize: 26,
+    fontWeight: '900',
+    lineHeight: 31,
+    textTransform: 'capitalize',
+  },
+  liquidDescription: {
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 20,
+  },
+  liquidMeterTrack: {
+    borderRadius: 999,
+    height: 10,
+    overflow: 'hidden',
+  },
+  liquidMeterFill: {
+    borderRadius: 999,
+    height: '100%',
+    minWidth: 10,
+  },
+  liquidMetricRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  userQuestionBox: {
+    alignItems: 'flex-start',
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 9,
+    padding: 12,
+  },
+  userQuestionText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  claimPanel: {
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 5,
+    padding: 13,
+  },
+  claimLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  claimText: {
+    fontSize: 15,
+    fontWeight: '900',
+    lineHeight: 22,
+  },
+  disclosure: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  disclosureHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 62,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  disclosureIcon: {
+    alignItems: 'center',
+    borderRadius: 13,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  disclosureCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  disclosureTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  disclosureSummary: {
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+  },
+  disclosureBody: {
+    borderTopColor: 'rgba(148,163,184,0.18)',
+    borderTopWidth: 1,
+    gap: 12,
+    padding: 12,
+  },
+  signalColumns: {
+    gap: 10,
+  },
+  signalColumn: {
+    borderRadius: 15,
+    borderWidth: 1,
+    gap: 9,
+    padding: 11,
+  },
+  signalColumnTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  bulletStack: {
+    gap: 8,
+  },
+  bulletRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  bulletDot: {
+    borderRadius: 999,
+    height: 7,
+    marginTop: 7,
+    width: 7,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 19,
+  },
+  contextStack: {
+    gap: 12,
+  },
+  sourceStack: {
+    gap: 9,
+  },
+  liquidDisclaimer: {
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 18,
+    textAlign: 'center',
   },
   scoreHeader: {
     alignItems: 'flex-start',
