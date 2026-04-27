@@ -114,21 +114,21 @@ function getDirectGatewayConfig() {
 }
 
 export function getAiRuntimeLabel() {
-  if (usesSupabaseAnalyzeBackend()) {
-    return 'Supabase Edge Function (server quotas)';
-  }
-
   const directGateway = getDirectGatewayConfig();
 
   if (directGateway.enabled) {
     return `Direct Vercel AI Gateway (${directGateway.analysisModel})`;
   }
 
+  if (usesSupabaseAnalyzeBackend()) {
+    return 'Supabase Edge Function + Vercel AI Gateway (server quotas)';
+  }
+
   return getBackendUrl() || 'not configured';
 }
 
 export function usesSupabaseAnalyzeBackend() {
-  return isSupabaseConfigured();
+  return isSupabaseConfigured() && !getDirectGatewayConfig().enabled;
 }
 
 export async function analyzeWithAdvancedAi({
@@ -146,17 +146,6 @@ export async function analyzeWithAdvancedAi({
   userQuestion?: string;
   inputKind?: 'text' | 'url' | 'combined' | 'share';
 }): Promise<AdvancedAiAnalysis | null> {
-  if (usesSupabaseAnalyzeBackend()) {
-    return analyzeWithSupabaseFunction({
-      content,
-      language,
-      urlContext,
-      task,
-      userQuestion,
-      inputKind,
-    });
-  }
-
   const directGateway = getDirectGatewayConfig();
 
   if (directGateway.enabled) {
@@ -168,6 +157,17 @@ export async function analyzeWithAdvancedAi({
       userQuestion,
       apiKey: directGateway.apiKey,
       model: task === 'research' ? directGateway.researchModel : directGateway.analysisModel,
+    });
+  }
+
+  if (usesSupabaseAnalyzeBackend()) {
+    return analyzeWithSupabaseFunction({
+      content,
+      language,
+      urlContext,
+      task,
+      userQuestion,
+      inputKind,
     });
   }
 
