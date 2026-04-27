@@ -1,6 +1,7 @@
 import {
   readSubscriptionState,
   readUsageState,
+  buildPreviewSubscriptionState,
   writeSubscriptionState,
   writeUsageState,
   type SubscriptionPlanId,
@@ -82,12 +83,9 @@ export async function syncBillingFromSupabase() {
         currentPeriodEndsAt: remoteSubscription.current_period_end ?? undefined,
         updatedAt: new Date().toISOString(),
       }
-    : {
-        ...localSubscription,
-        planId: 'free',
-        nativeStatus: 'inactive',
-        updatedAt: new Date().toISOString(),
-      };
+    : localSubscription.planId === 'free'
+      ? buildPreviewSubscriptionState('free')
+      : localSubscription;
   const nextUsage = mapUsageRowsToState(usageResult.data ?? [], localUsage);
 
   await Promise.all([writeSubscriptionState(nextSubscription), writeUsageState(nextUsage)]);

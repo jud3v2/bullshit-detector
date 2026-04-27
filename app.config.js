@@ -22,6 +22,7 @@ module.exports = () => {
       process.env.EXPO_PUBLIC_AI_GATEWAY_RESEARCH_MODEL ?? 'google/gemini-2.5-flash-lite',
     aiGatewayAnalysisModel:
       process.env.EXPO_PUBLIC_AI_GATEWAY_ANALYSIS_MODEL ?? 'google/gemini-2.5-flash-lite',
+    previewSubscriptionPlan: process.env.EXPO_PUBLIC_PREVIEW_SUBSCRIPTION_PLAN ?? '',
   };
 
   if (process.env.EXPO_GO_PREVIEW === '1') {

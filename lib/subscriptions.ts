@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
 export type SubscriptionPlanId = 'free' | 'starter' | 'plus' | 'pro';
 
@@ -102,11 +103,39 @@ export const subscriptionPlans: SubscriptionPlan[] = [
   },
 ];
 
+function getPreviewPlanOverride(): SubscriptionPlanId | null {
+  const previewPlan = Constants.expoConfig?.extra?.previewSubscriptionPlan;
+
+  if (previewPlan === 'starter' || previewPlan === 'plus' || previewPlan === 'pro') {
+    return previewPlan;
+  }
+
+  return null;
+}
+
+export function buildPreviewSubscriptionState(planId: SubscriptionPlanId): SubscriptionState {
+  const plan = getPlan(planId);
+
+  return {
+    planId,
+    nativeStatus: planId === 'free' ? 'inactive' : 'active',
+    productId: plan.iosProductId ?? plan.androidProductId,
+    currentPeriodEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function getPlan(planId: SubscriptionPlanId) {
   return subscriptionPlans.find((plan) => plan.id === planId) ?? subscriptionPlans[0];
 }
 
 export async function readSubscriptionState(): Promise<SubscriptionState> {
+  const previewOverride = getPreviewPlanOverride();
+
+  if (previewOverride) {
+    return buildPreviewSubscriptionState(previewOverride);
+  }
+
   try {
     const value = await SecureStore.getItemAsync(SUBSCRIPTION_KEY);
 
