@@ -13,14 +13,14 @@
     "test": "npm run typecheck && npm run lint"
   },
   "dependencies": {
-    "@ai-sdk/gateway": "^3.0.104",
+    "@ai-sdk/gateway": "^3.0.189",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@supabase/supabase-js": "^2.104.1",
-    "ai": "^6.0.168",
+    "ai": "^6.0.277",
     "expo": "~54.0.33",
     "expo-blur": "~15.0.8",
     "expo-clipboard": "~8.0.8",
